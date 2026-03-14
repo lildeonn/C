@@ -4,7 +4,7 @@
 int main(){
     double a[3][3];
     double so = 0, sp = 0;
-    int i, j, k;
+    int i, j, o;
     int max = 3;
 
     for(i=0; i <3; i++){
@@ -27,7 +27,7 @@ int main(){
 
     printf("osnovnaya^ %lf\npobochnaya^ %lf\n", so, sp);
     
-    /*______________________________________________*/
+//__________________________________________________
     
 	int b[2][2];
 	int kvad[2][2] = {0};
@@ -40,17 +40,17 @@ int main(){
     }
 	for (i = 0; i < 2; i++) {
         for (j = 0; j < 2; j++) {
-            for (k = 0; k < 2; k++) {
-                kvad[i][j] += b[i][k] * b[k][j];
+            for (o = 0; o < 2; o++) {
+                kvad[i][j] += b[i][o] * b[o][j];
             }
         }
     }
 
     
-    printf("kvadrat:\n");
+    printf("kvadrat;:\n");
     for (i = 0; i < 2; i++) {
         for (j = 0; j < 2; j++) {
-            printf("%d", kvad[i][j]);
+            printf("%d ", kvad[i][j]);
         }
     }
 	return 0;
