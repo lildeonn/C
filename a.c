@@ -5,7 +5,7 @@
 int main(int argc, char *argv[]) {
 	char name[25];
 	printf("napishi svoyo imya:\n");
-	scanf("%20s", name);
+	scanf("%s", name);
 	printf("Pivet, %s, kak dela?\n", name);
 	return 0;
 }
