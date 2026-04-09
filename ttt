@@ -1,0 +1,80 @@
+def analyze_relation(R):
+    """
+    Выясняет свойства отношения, заданного квадратной булевой матрицей R
+    """
+    n = len(R)
+
+    # заглушка
+    reflexive = True
+    for i in range(n):
+        if R[i][i] == 0:
+            reflexive = False
+            break
+
+    symmetric = True
+    for i in range(n):
+        for j in range(n):
+            if R[i][j] != R[j][i]:
+                symmetric = False
+
+    transitive = True
+    for i in range(n):
+        for j in range(n):
+            for k in range(n):
+                if R[i][j] and R[j][k] and not R[i][k]:
+                    transitive = False
+    
+    print("Рефлексивность:", reflexive)
+    print("Симметричность:", symmetric)
+    print("Транзитивность:", transitive)
+
+   
+def print_relation(R):
+    for row in R:
+        print(list(map(int, row)))
+
+def inverse(R):
+    n = len(R)
+    R_inv = [[int(R[j][i]) for j in range(n)] for i in range(n)]
+    return R_inv
+
+
+
+A1 = ["Иванов", "Петров", "Сидоров", "Петечкин", "Васечкин"]
+n1 = len(A1)
+
+R1 = [[0 for _ in range(n1)] for _ in range(n1)]
+R1_list = [("Иванов", "Петров"), ("Петров", "Сидоров"), ("Иванов", "Петечкин")]  # отношение задано перечислением своих элементов
+
+for p in R1_list:
+    ind1 = A1.index(p[0])
+    ind2 = A1.index(p[1])
+    R1[ind1][ind2] = 1
+
+print_relation(R1)
+analyze_relation(R1)
+print("обратное отношение:", inverse(R1))
+
+A2 = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+n2 = len(A2)
+
+# отношение задается предикатом - логическим условием
+def F2(x, y):  # здесь вы можете определить свой предикат на множестве A2
+    return (x < y)
+
+R2 = [[F2(A2[i], A2[j]) for j in range(n2)] for i in range(n2)]
+print_relation(R2)
+analyze_relation(R2)
+print("обратное отношение:", inverse(R2))
+
+A3 = A2
+n3 = len(A3)
+
+# отношение "иметь четную сумму"
+def F3(x, y):
+    return (x + y) % 2 == 0
+
+R3 = [[F3(A3[i], A3[j]) for j in range(n3)] for i in range(n3)]
+print_relation(R3)
+analyze_relation(R3)
+print("обратное отношение:", inverse(R3))
