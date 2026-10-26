@@ -1,0 +1,191 @@
+"""Лабораторная работа №6 «Графы» (тема 1.9 Графы)
+Матрица Кирхгофа L = D − A, спектр графа, вектор Фидлера.
+
+Зависимости:  pip install numpy sympy networkx matplotlib
+"""
+
+import numpy as np
+import sympy as sp
+import networkx as nx
+import matplotlib.pyplot as plt
+
+np.set_printoptions(precision=4, suppress=True)
+lam = sp.symbols('λ')
+EPS = 1e-8
+
+
+# ---------------------------------------------------------------- функции
+
+def kirchhoff(A):
+    """Матрица Кирхгофа (лапласиан) L = D − A, D — диагональ степеней вершин."""
+    A = np.array(A, dtype=float)
+    return np.diag(A.sum(axis=1)) - A
+
+
+def char_equation(L):
+    """Уравнение для собственных значений: det(L − λE) = 0."""
+    M = sp.Matrix(np.rint(L).astype(int))
+    p = sp.expand((M - lam * sp.eye(M.rows)).det())
+    return p, sp.factor(p)
+
+
+def spectrum(L):
+    """Собственные значения матрицы L по возрастанию (спектр графа)."""
+    vals = np.linalg.eigvalsh(L)
+    vals[np.abs(vals) < EPS] = 0.0
+    return np.round(vals, 4) + 0.0
+
+
+def fiedler(L):
+    """
+    λ2 (алгебраическая связность) и вектор Фидлера — собственный вектор
+    для λ2, ортогональный вектору (1, …, 1).
+    Если λ2 кратное, вектор не единственный: берётся проекция первого
+    базисного орта на подпространство (результат не зависит от того,
+    какой базис вернул numpy). Возвращает (λ2, вектор, размерность выбора).
+    """
+    vals, vecs = np.linalg.eigh(L)
+    n = len(vals)
+    lam2 = vals[1]
+    V = vecs[:, np.abs(vals - lam2) < 1e-6]          # подпространство λ2
+    V = V - V.mean(axis=0)                            # убираем составляющую вдоль (1,…,1)
+    U, s, _ = np.linalg.svd(V, full_matrices=False)
+    U = U[:, s > EPS]                                 # ортонормированный базис
+    P = U @ U.T                                       # ортопроектор
+    k = int(np.argmax(np.linalg.norm(P, axis=0) > EPS))
+    v = P[:, k] / np.linalg.norm(P[:, k])
+    v *= np.sign(v[np.argmax(np.abs(v) > EPS)])       # первая ненулевая компонента > 0
+    v[np.abs(v) < EPS] = 0.0
+    lam2 = 0.0 if abs(lam2) < EPS else lam2
+    return round(lam2, 4) + 0.0, np.round(v, 4) + 0.0, U.shape[1]
+
+
+def fmt_poly(expr):
+    return str(expr).replace('**', '^').replace('*', '·')
+
+
+def fmt_vec(v):
+    return '(' + ', '.join(f'{x:g}' for x in v) + ')'
+
+
+def analyze(name, A):
+    """Вывод: A, L, уравнение, спектр, λ2, вектор Фидлера."""
+    A = np.array(A)
+    L = kirchhoff(A)
+    p, pf = char_equation(L)
+    vals = spectrum(L)
+    lam2, f, dim = fiedler(L)
+
+    print(f'\n--- {name} ---')
+    print('Матрица смежности A:\n', A)
+    print('Матрица Кирхгофа L = D − A:\n', L.astype(int))
+    print('Уравнение для собственных значений det(L − λE) = 0:')
+    print('   ', fmt_poly(p), '= 0')
+    print('   ', fmt_poly(pf), '= 0')
+    print('Собственные значения (спектр):', fmt_vec(vals))
+    print('λ2 (алгебраическая связность):', f'{lam2:g}',
+          '→ граф несвязный' if lam2 == 0 else '→ граф связный')
+    print('Вектор Фидлера:', fmt_vec(f))
+    if dim > 1:
+        print(f'   (λ2 кратное: подходит любой вектор из {dim}-мерного '
+              f'подпространства, ортогонального (1,…,1))')
+    return dict(name=name, n=len(A), m=int(A.sum() // 2),
+                comp=nx.number_connected_components(nx.from_numpy_array(A)),
+                vals=vals, lam2=lam2, lmax=vals[-1], fiedler=f)
+
+
+def compare(*rows):
+    """Таблица сравнения графов."""
+    head = ['Характеристика'] + [r['name'] for r in rows]
+    data = [
+        ['Вершин', *[r['n'] for r in rows]],
+        ['Рёбер', *[r['m'] for r in rows]],
+        ['Компонент связности', *[r['comp'] for r in rows]],
+        ['Спектр L', *[fmt_vec(r['vals']) for r in rows]],
+        ['Кратность λ = 0', *[int(np.sum(r['vals'] == 0)) for r in rows]],
+        ['λ2', *[f"{r['lam2']:g}" for r in rows]],
+        ['λmax', *[f"{r['lmax']:g}" for r in rows]],
+        ['Σλ = 2·|E|', *[f"{r['vals'].sum():g}" for r in rows]],
+        ['Вектор Фидлера', *[fmt_vec(r['fiedler']) for r in rows]],
+    ]
+    table = [head] + [[str(c) for c in row] for row in data]
+    w = [max(len(row[i]) for row in table) for i in range(len(head))]
+    line = '+' + '+'.join('-' * (x + 2) for x in w) + '+'
+    print('\nТаблица сравнения:')
+    print(line)
+    for i, row in enumerate(table):
+        print('| ' + ' | '.join(c.ljust(w[j]) for j, c in enumerate(row)) + ' |')
+        if i == 0:
+            print(line)
+    print(line)
+
+
+def draw(A, title, pos, colors, fname):
+    """Рисунок графа (вершины нумеруются с 1)."""
+    G = nx.relabel_nodes(nx.from_numpy_array(np.array(A)), lambda i: i + 1)
+    plt.figure(figsize=(5, 4))
+    nx.draw(G, pos, with_labels=True, node_color=colors, node_size=800,
+            font_color='white', font_weight='bold', width=2, edge_color='#555')
+    plt.title(title)
+    plt.axis('equal')
+    plt.savefig(fname, dpi=120, bbox_inches='tight')
+    plt.show()
+
+
+# ---------------------------------------------------------------- задание 1
+print('=' * 60)
+print('ЗАДАНИЕ 1. Граф: ребро 1–2, изолированная вершина 3, ребро 4–5')
+print('=' * 60)
+
+A1 = [[0, 1, 0, 0, 0],
+      [1, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 1],
+      [0, 0, 0, 1, 0]]
+g1 = analyze('G (K2+K1+K2)', A1)
+
+# граф для сравнения: два непересекающихся ребра 1–2, 3–4
+A_2K2 = [[0, 1, 0, 0],
+         [1, 0, 0, 0],
+         [0, 0, 0, 1],
+         [0, 0, 1, 0]]
+g_2k2 = analyze('2K2', A_2K2)
+compare(g1, g_2k2)
+
+# ---------------------------------------------------------------- задание 2
+print('\n' + '=' * 60)
+print('ЗАДАНИЕ 2. Полный двудольный граф K2,2 (доли {1,2} и {3,4})')
+print('=' * 60)
+
+A_K22 = [[0, 0, 1, 1],
+         [0, 0, 1, 1],
+         [1, 1, 0, 0],
+         [1, 1, 0, 0]]
+draw(A_K22, 'K2,2',
+     pos={1: (0, 1), 2: (0, 0), 3: (1, 1), 4: (1, 0)},
+     colors=['#1f77b4', '#1f77b4', '#d62728', '#d62728'],
+     fname='K22.png')
+k22 = analyze('K2,2', A_K22)
+
+# для сравнения: K1,2 (доли {1} и {2,3})
+A_K12 = [[0, 1, 1],
+         [1, 0, 0],
+         [1, 0, 0]]
+k12 = analyze('K1,2', A_K12)
+compare(k22, k12)
+
+# ---------------------------------------------------------------- задание 3
+print('\n' + '=' * 60)
+print('ЗАДАНИЕ 3. Несвязный граф из 5 вершин: треугольник 1–2–3 и ребро 4–5')
+print('=' * 60)
+
+A3 = [[0, 1, 1, 0, 0],
+      [1, 0, 1, 0, 0],
+      [1, 1, 0, 0, 0],
+      [0, 0, 0, 0, 1],
+      [0, 0, 0, 1, 0]]
+draw(A3, 'Несвязный граф (5 вершин)',
+     pos={1: (0, 0), 2: (1, 0), 3: (0.5, 0.87), 4: (2, 0), 5: (2, 0.87)},
+     colors=['#2ca02c'] * 3 + ['#ff7f0e'] * 2,
+     fname='task3.png')
+analyze('Задание 3', A3)
